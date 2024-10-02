@@ -75,9 +75,19 @@ app.post("/", function(req, res){
 
 });
 
-app.post("/delete", function(req, res){
-  console.log(req.body);
+app.post("/delete", async function(req, res) {
+  const checkedItemId = req.body.checkbox;
+
+  try {
+    await Item.findByIdAndDelete(checkedItemId);
+    console.log("Successfully deleted checked item.");
+    res.redirect("/");
+  } catch (err) {
+    console.log(err);
+  }
 });
+
+
 
 app.get("/work", function(req,res){
   res.render("list", {listTitle: "Work List", newListItems: workItems});
