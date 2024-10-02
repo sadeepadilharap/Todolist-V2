@@ -33,47 +33,95 @@ const item3 = new Item({
 
 const defaultItems = [item1, item2, item3];
 
+const listSchema = {
+  name : String,
+  items : [itemsSchema]
+};
+
+const List = mongoose.model("List", listSchema);
 
 
 
-  app.get("/", async function(req, res) {
-    try {
-      const foundItems = await Item.find({});
 
-      if (foundItems.length === 0) {
-        Item.insertMany(defaultItems)
-        .then(() => {
-          console.log("Successfully saved default items to DB");
-        })
-        .catch((err) => {
-          console.log(err);
-        });
+app.get("/", async function(req, res) {
+  try {
+    const foundItems = await Item.find({});
 
-        res.redirect("/");
+    if (foundItems.length === 0) {
+      Item.insertMany(defaultItems)
+      .then(() => {
+        console.log("Successfully saved default items to DB");
+      })
+      .catch((err) => {
+        console.log(err);
+      });
 
-      }else{
-        res.render("list", { listTitle: "Today", newListItems: foundItems });
-      }
-    } catch (err) {
-      console.log(err);
+      res.redirect("/");
+
+    }else{
+      res.render("list", { listTitle: "Today", newListItems: foundItems });
     }
-  });
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+app.get("/:customListName", async function(req, res) { 
+  const customListName = req.params.customListName;
+  console.log(customListName);
+
+  try {
+    const foundList = await List.findOne({name: customListName});
+    
+    if (!foundList) {
+      // Create a new list
+      const list = new List({
+        name: customListName,
+        items: defaultItems
+      });
+
+      await list.save();
+      res.redirect("/" + customListName);
+    } else {
+      // Show an existing list
+      res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error occurred while fetching list.");
+  }
+});
+
   
 
-app.post("/", function(req, res){
+app.post("/", async function(req, res) {
 
   const itemName = req.body.newItem;
+  const listName = req.body.list;
 
   const item = new Item({
     name: itemName
   });
 
-  item.save();
-
-  res.redirect("/");
-
-
+  if (listName === "Today") {
+    await item.save();
+    res.redirect("/");
+  } else {
+    try {
+      const foundList = await List.findOne({name: listName});
+      if (foundList) {
+        foundList.items.push(item);
+        await foundList.save();
+        res.redirect("/" + listName);
+      }
+    } catch (err) {
+      console.log(err);
+      res.status(500).send("Error occurred while adding item to the list.");
+    }
+  }
 });
+
+
 
 app.post("/delete", async function(req, res) {
   const checkedItemId = req.body.checkbox;
